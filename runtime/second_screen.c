@@ -62,8 +62,9 @@ static void json_string(char *out,size_t cap,const char *s) {
 static size_t snapshot_json(char *out,size_t cap) {
     Snapshot s;pthread_mutex_lock(&state_lock);s=state;pthread_mutex_unlock(&state_lock);
     char p[300],r[300];json_string(p,sizeof p,s.place);json_string(r,sizeof r,s.region);
+    char hour[24]; if(s.has_hour) snprintf(hour,sizeof hour,"%.2f",s.hour); else snprintf(hour,sizeof hour,"null");
     int n=snprintf(out,cap,"{\"connected\":%s,\"position\":{\"x\":%.2f,\"y\":%.2f,\"z\":%.2f},\"stamina\":%.3f,\"hour\":%s,\"weather\":%d,\"place\":%s,\"region\":%s}",
-        s.has_link?"true":"false",s.x,s.y,s.z,s.stamina,s.has_hour?"true":"false",s.weather,p,r);
+        s.has_link?"true":"false",s.x,s.y,s.z,s.stamina,hour,s.weather,p,r);
     return n>0&&(size_t)n<cap?(size_t)n:0;
 }
 static uint32_t rol(uint32_t x,unsigned n){return(x<<n)|(x>>(32-n));}
@@ -136,7 +137,7 @@ static void *serve(void *unused) {
     SSock listener=socket(AF_INET,SOCK_STREAM,0);if(listener==SS_BAD)goto done;
     int yes=1;setsockopt(listener,SOL_SOCKET,SO_REUSEADDR,(const char *)&yes,sizeof yes);
     struct sockaddr_in a;memset(&a,0,sizeof a);a.sin_family=AF_INET;a.sin_port=htons(SS_PORT);a.sin_addr.s_addr=htonl(bound_lan?INADDR_ANY:INADDR_LOOPBACK);
-    if(bind(listener,(struct sockaddr *)&a,sizeof a)<0||listen(listener,4)<0){ss_close(listener);goto done;}
+    if(bind(listener,(struct sockaddr *)&a,sizeof a)<0||listen(listener,4)<0){LOG("[second-screen] cannot bind TCP port %d\\n",SS_PORT);ss_close(listener);goto done;}
     LOG("[second-screen] listening on %s:%d\n",bound_lan?"0.0.0.0":"127.0.0.1",SS_PORT);
     while(!atomic_load(&stop_requested)){
         fd_set rd;FD_ZERO(&rd);FD_SET(listener,&rd);struct timeval tv={0,250000};if(select((int)(listener+1),&rd,NULL,NULL,&tv)<=0)continue;
@@ -149,6 +150,11 @@ static void *serve(void *unused) {
         SSock client=accept(listener,(struct sockaddr *)&peer,&plen);if(client==SS_BAD)continue;
 #ifdef __APPLE__
         int no_sigpipe=1;setsockopt(client,SOL_SOCKET,SO_NOSIGPIPE,&no_sigpipe,sizeof no_sigpipe);
+#endif
+#ifdef _WIN32
+        DWORD recv_timeout=2000;setsockopt(client,SOL_SOCKET,SO_RCVTIMEO,(const char *)&recv_timeout,sizeof recv_timeout);
+#else
+        struct timeval recv_timeout={2,0};setsockopt(client,SOL_SOCKET,SO_RCVTIMEO,&recv_timeout,sizeof recv_timeout);
 #endif
         char req[4096];size_t used=0;req[0]=0;
         while(used+1<sizeof req&&!strstr(req,"\r\n\r\n")){
