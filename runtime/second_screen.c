@@ -24,6 +24,7 @@ typedef int SSock;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "rt.h"
 #include "settings.h"
 #include "second_screen.h"
@@ -34,6 +35,7 @@ static pthread_mutex_t state_lock=PTHREAD_MUTEX_INITIALIZER;
 static Snapshot state;
 static pthread_t server_thread;
 static atomic_bool running,stop_requested;
+static atomic_llong retry_after;
 static bool bound_lan;
 
 static bool send_all(SSock s,const void *data,size_t n) {
@@ -126,7 +128,7 @@ static const char page[] =
 "if(d.connected){let x=Math.max(8,Math.min(792,(d.position.x+5000)/10000*800)),y=Math.max(8,Math.min(352,(d.position.z+4000)/8000*360));ctx.fillStyle='#8ee0a8';ctx.beginPath();ctx.arc(x,y,9,0,7);ctx.fill()}}"
 "function update(d){$('status').textContent=d.connected?'Link detectado':'Esperando a que cargue el mundo';$('place').textContent=d.place||'—';$('region').textContent=d.region||'—';"
 "$('xyz').textContent=d.connected?[d.position.x,d.position.y,d.position.z].map(v=>v.toFixed(1)).join(' / '):'—';$('stamina').textContent=d.stamina>=0?d.stamina.toFixed(2):'—';"
-"$('hour').textContent=d.hour?d.hour.toFixed(2)+' h':'—';$('weather').textContent=d.weather>=0?d.weather:'—';draw(d)}"
+"$('hour').textContent=d.hour!==null?d.hour.toFixed(2)+' h':'—';$('weather').textContent=d.weather>=0?d.weather:'—';draw(d)}"
 "function connect(){let w=new WebSocket('ws://'+location.host+'/ws');w.onmessage=e=>{try{update(JSON.parse(e.data))}catch(_){}};w.onclose=()=>setTimeout(connect,1500);w.onerror=()=>w.close()}connect();</script></html>";
 
 static void *serve(void *unused) {
@@ -137,7 +139,7 @@ static void *serve(void *unused) {
     SSock listener=socket(AF_INET,SOCK_STREAM,0);if(listener==SS_BAD)goto done;
     int yes=1;setsockopt(listener,SOL_SOCKET,SO_REUSEADDR,(const char *)&yes,sizeof yes);
     struct sockaddr_in a;memset(&a,0,sizeof a);a.sin_family=AF_INET;a.sin_port=htons(SS_PORT);a.sin_addr.s_addr=htonl(bound_lan?INADDR_ANY:INADDR_LOOPBACK);
-    if(bind(listener,(struct sockaddr *)&a,sizeof a)<0||listen(listener,4)<0){LOG("[second-screen] cannot bind TCP port %d\\n",SS_PORT);ss_close(listener);goto done;}
+    if(bind(listener,(struct sockaddr *)&a,sizeof a)<0||listen(listener,4)<0){LOG("[second-screen] cannot bind TCP port %d\\n",SS_PORT);ss_close(listener);atomic_store(&retry_after,(long long)time(NULL)+5);goto done;}
     LOG("[second-screen] listening on %s:%d\n",bound_lan?"0.0.0.0":"127.0.0.1",SS_PORT);
     while(!atomic_load(&stop_requested)){
         fd_set rd;FD_ZERO(&rd);FD_SET(listener,&rd);struct timeval tv={0,250000};if(select((int)(listener+1),&rd,NULL,NULL,&tv)<=0)continue;
@@ -197,6 +199,7 @@ done:
     atomic_store(&running,false);return NULL;
 }
 void second_screen_publish(bool has_link,float x,float y,float z,float stamina,float hour,int weather,const char *place,const char *region){
+    if(!g_settings.second_screen)return;
     Snapshot s={0};s.has_link=has_link;s.x=x;s.y=y;s.z=z;s.stamina=stamina;s.hour=hour;s.has_hour=hour>=0;s.weather=weather;
     snprintf(s.place,sizeof s.place,"%s",place?place:"");snprintf(s.region,sizeof s.region,"%s",region?region:"");
     pthread_mutex_lock(&state_lock);state=s;pthread_mutex_unlock(&state_lock);
@@ -205,7 +208,7 @@ void second_screen_frame(void){
     static bool last_lan;bool wanted=g_settings.second_screen,lan=g_settings.second_screen_lan;
     if(!wanted){if(atomic_load(&running))atomic_store(&stop_requested,true);return;}
     if(atomic_load(&running)&&lan!=last_lan){atomic_store(&stop_requested,true);return;}
-    if(!atomic_load(&running)){atomic_store(&stop_requested,false);bound_lan=lan;last_lan=lan;atomic_store(&running,true);
+    if(!atomic_load(&running)){if((long long)time(NULL)<atomic_load(&retry_after))return;atomic_store(&stop_requested,false);bound_lan=lan;last_lan=lan;atomic_store(&running,true);
         if(pthread_create(&server_thread,NULL,serve,NULL)!=0){atomic_store(&running,false);LOG("[second-screen] cannot start server thread\n");}
         else pthread_detach(server_thread);}
 }
