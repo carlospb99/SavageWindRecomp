@@ -139,7 +139,7 @@ static void *serve(void *unused) {
     SSock listener=socket(AF_INET,SOCK_STREAM,0);if(listener==SS_BAD)goto done;
     int yes=1;setsockopt(listener,SOL_SOCKET,SO_REUSEADDR,(const char *)&yes,sizeof yes);
     struct sockaddr_in a;memset(&a,0,sizeof a);a.sin_family=AF_INET;a.sin_port=htons(SS_PORT);a.sin_addr.s_addr=htonl(bound_lan?INADDR_ANY:INADDR_LOOPBACK);
-    if(bind(listener,(struct sockaddr *)&a,sizeof a)<0||listen(listener,4)<0){LOG("[second-screen] cannot bind TCP port %d\\n",SS_PORT);ss_close(listener);atomic_store(&retry_after,(long long)time(NULL)+5);goto done;}
+    if(bind(listener,(struct sockaddr *)&a,sizeof a)<0||listen(listener,4)<0){LOG("[second-screen] cannot bind TCP port %d\n",SS_PORT);ss_close(listener);atomic_store(&retry_after,(long long)time(NULL)+5);goto done;}
     LOG("[second-screen] listening on %s:%d\n",bound_lan?"0.0.0.0":"127.0.0.1",SS_PORT);
     while(!atomic_load(&stop_requested)){
         fd_set rd;FD_ZERO(&rd);FD_SET(listener,&rd);struct timeval tv={0,250000};if(select((int)(listener+1),&rd,NULL,NULL,&tv)<=0)continue;
