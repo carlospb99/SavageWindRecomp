@@ -11,6 +11,7 @@
 #include "control_places.h"
 #include "discord_rpc.h"
 #include "game_place.h"
+#include "second_screen.h"
 #include "language.h"
 #include "perfmon.h"
 #include "rt.h"
@@ -142,6 +143,27 @@ static void presence_frame(void) {
 
 void control_place_frame(void) {
     presence_frame();
+    // Publish a read-only snapshot on the game thread; the network thread never dereferences game addresses.
+    {
+        float p[3] = {0};
+        uint64_t pinfo = player_info();
+        bool has_link = link_position(p);
+        float stamina = has_link && pinfo ? *(float *)(uintptr_t)(pinfo + 0xa4) : -1.0f;
+        char details[128] = "", region[128] = "";
+        if (game_place_text(p[0], p[2], has_link, details, sizeof details, region, sizeof region)) {
+            float hour = test_warp_hour(NULL);
+            int weather = -1;
+            if (g_site.world_mgr) {
+                uint64_t wm = *(uint64_t *)(uintptr_t)g_site.world_mgr;
+                if (wm && *(uint32_t *)(uintptr_t)(wm + 0x5c0))
+                    weather = *(volatile uint8_t *)(uintptr_t)(wm + 0x7d1);
+            }
+            second_screen_publish(has_link, p[0], p[1], p[2], stamina, hour, weather, details, region);
+        } else {
+            second_screen_publish(false, 0, 0, 0, -1, -1, -1, "Loading", "");
+        }
+    }
+    second_screen_frame();
     static int on = -1;
     static uint64_t last_ns;
     static float last[3];

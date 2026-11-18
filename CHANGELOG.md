@@ -670,3 +670,8 @@ Thanks to everyone who reported bugs, and to the contributors whose work is in t
 - Menus in the game's 11 languages.
 - Keyboard and mouse with remappable keys and a mouse camera, and any controller SDL knows.
 - An overlay menu and a performance overlay (F10).
+
+## Unreleased
+
+- Add an optional, read-only HTTP/WebSocket second-screen dashboard.
+- Add Gameplay settings for the dashboard and trusted-LAN access.

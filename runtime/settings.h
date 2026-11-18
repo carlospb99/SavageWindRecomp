@@ -115,6 +115,8 @@ typedef struct {
     bool quick_drop;      // native dropping from the quick equipment selector
     bool quick_sort;      // native sorting in the quick equipment selector
     bool menu_wrap;      // the game's menus wrap around: past the last button to the first (runtime/menu_wrap.c)
+    bool second_screen;   // Options > Gameplay: read-only browser dashboard (off by default)
+    bool second_screen_lan; // Allow other devices on the LAN to connect (off by default)
     bool discord_rpc;     // Options > Gameplay: the player's Discord status shows where they are in the game
                           // (Windows; talks to the Discord app's local pipe only, never the network; off by default)
     bool dpad_move;      // the d-pad (and arrow keys) also act as the left stick while it is at rest

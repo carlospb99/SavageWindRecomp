@@ -1038,6 +1038,15 @@ void build_items(void) {
                        [](const Item &) { return (int)g_settings.quick_drop; },
                        [](const Item &, int x) { g_settings.quick_drop = x; }, 0));
 
+    v.push_back(toggle(P_GAMEPLAY, "Second screen",
+                       "A read-only live dashboard in your browser at http://127.0.0.1:8765. Off by default.",
+                       [](const Item &) { return (int)g_settings.second_screen; },
+                       [](const Item &, int x) { g_settings.second_screen = x; }, 0));
+    v.push_back(toggle(P_GAMEPLAY, "Second screen: local network",
+                       "Lets other devices on your local network connect. Enable only on a trusted network.",
+                       [](const Item &) { return (int)g_settings.second_screen_lan; },
+                       [](const Item &, int x) { g_settings.second_screen_lan = x; }, 0));
+
     v.push_back(toggle(P_GAMEPLAY, "Discord Rich Presence",
                        "Your Discord status shows where you are in the game, in the game's language. It talks to the "
                        "Discord app on this computer only, and nothing runs while it is off.",

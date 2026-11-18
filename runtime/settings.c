@@ -595,6 +595,8 @@ void settings_load(void) {
         else if (!strcmp(key, "stick_camera_speed")) g_settings.stick_cam_on = atoi(val) != 0;
         else if (!strcmp(key, "stick_camera_x")) g_settings.stick_cam_x = atoi(val);  // (percent)
         else if (!strcmp(key, "stick_camera_y")) g_settings.stick_cam_y = atoi(val);  // (percent)
+        else if (!strcmp(key, "second_screen")) g_settings.second_screen = atoi(val) != 0;
+        else if (!strcmp(key, "second_screen_lan")) g_settings.second_screen_lan = atoi(val) != 0;
         else if (!strcmp(key, "start_at_continue")) g_settings.auto_continue = atoi(val) != 0;
         else if (!strcmp(key, "text_speed")) {
             for (int i = 0; i < TEXT_SPEED_COUNT; i++)
@@ -790,6 +792,8 @@ void settings_save(void) {
     fprintf(f, "quick_drop = %d\n", g_settings.quick_drop);
     fprintf(f, "quick_sort = %d\n", g_settings.quick_sort);
     fprintf(f, "discord_rpc = %d\n", g_settings.discord_rpc);
+    fprintf(f, "second_screen = %d\n", g_settings.second_screen);
+    fprintf(f, "second_screen_lan = %d\n", g_settings.second_screen_lan);
     fprintf(f, "dpad_move = %d\n", g_settings.dpad_move);
     fprintf(f, "menu_wrap = %d\n", g_settings.menu_wrap);
     fprintf(f, "left_stick_deadzone = %.0f\n", g_settings.stick_deadzone[0] * 100);
